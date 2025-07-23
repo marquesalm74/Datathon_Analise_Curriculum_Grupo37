@@ -1,0 +1,49 @@
+# Ambiente Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.log
+
+# Variáveis de ambiente
+.env
+
+# Cache do Poetry
+.cache/
+.poetry/
+
+# Ambiente virtual
+.env/
+.venv/
+
+# Arquivos de configuração locais
+.vscode/
+
+# Streamlit
+.streamlit/config.toml
+.streamlit/secrets.toml
+
+# Arquivos de banco de dados locais (se usar SQLite)
+*.sqlite3
+
+# Docker
+*.pid
+*.sock
+# Arquivos de volumes ou bancos temporários, se usados
+volumes/
+db_data/
+tmp/
+
+# Logs
+*.log
+
+# Arquivos do sistema
+.DS_Store
+Thumbs.db
+
+# Arquivos de backup
+*~
+
+# Exportações do Streamlit (se gerar arquivos)
+export.csv
+export.json
+
