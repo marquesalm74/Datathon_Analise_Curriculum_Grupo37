@@ -7,9 +7,19 @@ import plotly.graph_objects as go
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 from database import AnalyseDatabase
 from ai import GroqClient
-from tratarbase import applicants
+#from tratarbase import applicants
 from scipy.stats import gaussian_kde
 from fpdf import FPDF
+from datetime import datetime
+
+def validar_data(data_str, data_padrao="2000-01-01"):
+        try:
+            dt = pd.to_datetime(data_str, errors="coerce")
+            if pd.isna(dt):
+                dt = pd.to_datetime(data_padrao)
+        except Exception:
+            dt = pd.to_datetime(data_padrao)
+        return dt.date()
 
 # Configuração da página
 st.set_page_config(layout='wide', page_title='Análise de Currículo')
@@ -177,11 +187,9 @@ if acao == "Análise de Currículo":
                         ),
                         use_container_width=True
                     )
-                    
 
-                                    
-##################################################################################################
-
+#################################### Formulário                     
+#
 elif acao == "Inserir/Atualizar Applicants":
     st.header('🔎 Inserir/Atualizar Applicants')
     
@@ -221,7 +229,8 @@ elif acao == "Inserir/Atualizar Applicants":
         email = st.text_input("E-mail", value=dados_candidato.get("email", ""))
         local = st.text_input("Local", value=dados_candidato.get("local", ""))
         codigo_profissional = st.text_input("Código Profissional", value=dados_candidato.get("codigo_profissional", ""))
-        data_nascimento = st.date_input("Data de Nascimento", value=pd.to_datetime(dados_candidato.get("data_nascimento", "2000-01-01")).date())
+        #data_nascimento = st.date_input("Data de Nascimento", value=pd.to_datetime(dados_candidato.get("data_nascimento", "2000-01-01")).date())
+        data_nascimento = st.date_input("Data de Nascimento", value=validar_data(dados_candidato.get("data_nascimento")))
         telefone_celular = st.text_input("Telefone Celular", value=dados_candidato.get("telefone_celular", ""))
 
         sexo_opcoes = ["", "Feminino", "Masculino"]
@@ -310,3 +319,93 @@ elif acao == "Inserir/Atualizar Applicants":
         #    else:
         #        database.atualizar_applicant_supabase(dados)
         #        st.success(f"✅ Dados do candidato {id_final} atualizados com sucesso!")
+        
+################################## CODIGO PARA SUPABASE #####################################
+#
+# elif acao == "Inserir/Atualizar Applicants":
+#     st.header('🔎 Inserir/Atualizar Applicants')
+
+#     modo_cadastro = st.radio("Você deseja:", ["Cadastrar novo candidato", "Editar candidato existente"], horizontal=True)
+
+#     with st.expander("📋 Formulário do Candidato"):
+#         # Busca todos os applicants
+#         todos_applicants = database.get_applicants()
+#         lista_ids = [str(a['id']) for a in todos_applicants]
+
+#         dados_candidato = {}
+#         id_final = None
+
+#         if modo_cadastro == "Cadastrar novo candidato":
+#             id_digitado = st.text_input("ID do candidato (opcional)", placeholder="Ex: UUID ou código")
+#             id_final = id_digitado.strip() if id_digitado else None
+#         else:
+#             id_selecionado = st.selectbox("Selecione o ID do candidato:", [""] + lista_ids)
+#             if id_selecionado:
+#                 dados_candidato = next((a for a in todos_applicants if str(a["id"]) == str(id_selecionado)), {})
+#                 id_final = id_selecionado
+
+#         # Campos do formulário
+#         def get_val(chave, default=""): return dados_candidato.get(chave, default)
+
+#         nome = st.text_input("Nome", value=get_val("nome"))
+#         telefone = st.text_input("Telefone", value=get_val("telefone"))
+#         email = st.text_input("E-mail", value=get_val("email"))
+#         localizacao = st.text_input("Localização", value=get_val("localizacao"))
+#         codigo_profissional = st.text_input("Código Profissional", value=get_val("codigo_profissional"))
+#         data_nascimento = st.date_input("Data de Nascimento", value=pd.to_datetime(get_val("data_nascimento", "2000-01-01")).date())
+#         telefone_celular = st.text_input("Telefone Celular", value=get_val("telefone_celular"))
+
+#         sexo = st.selectbox("Sexo", ["", "Feminino", "Masculino"], index=["", "Feminino", "Masculino"].index(get_val("sexo", "")))
+#         estado_civil = st.selectbox("Estado Civil", ["", "Casado", "Solteiro", "Separado Judicialmente", "Divorciado"], index=["", "Casado", "Solteiro", "Separado Judicialmente", "Divorciado"].index(get_val("estado_civil", "")))
+#         pcd = st.selectbox("PCD?", ["False", "True"], index=["False", "True"].index(str(get_val("pcd", "False"))))
+#         endereco = st.selectbox("UF", ["", "Acre", "Alagoas", "Amapá", "Amazonas", "Bahia", "Ceará", "Distrito Federal", "Espírito Santo", "Goiás", "Maranhão", "Mato Grosso", "Mato Grosso do Sul", "Minas Gerais", "Pará", "Paraíba", "Paraná", "Pernambuco", "Piauí", "Rio de Janeiro", "Rio Grande do Norte", "Rio Grande do Sul", "Rondônia", "Roraima", "Santa Catarina", "São Paulo", "Sergipe", "Tocantins"], index=0 if not get_val("endereco") else ["", "Acre", "Alagoas", "Amapá", "Amazonas", "Bahia", "Ceará", "Distrito Federal", "Espírito Santo", "Goiás", "Maranhão", "Mato Grosso", "Mato Grosso do Sul", "Minas Gerais", "Pará", "Paraíba", "Paraná", "Pernambuco", "Piauí", "Rio de Janeiro", "Rio Grande do Norte", "Rio Grande do Sul", "Rondônia", "Roraima", "Santa Catarina", "São Paulo", "Sergipe", "Tocantins"].index(get_val("endereco")))
+
+#         url_linkedin = st.text_input("URL LinkedIn", value=get_val("url_linkedin"))
+#         titulo_profissional = st.text_input("Título Profissional", value=get_val("titulo_profissional"))
+#         area_atuacao = st.text_input("Área de Atuação", value=get_val("area_atuacao"))
+#         conhecimentos_tecnicos = st.text_input("Conhecimentos Técnicos", value=get_val("conhecimentos_tecnicos"))
+#         certificacoes = st.text_input("Certificações", value=get_val("certificacoes"))
+#         remuneracao = st.number_input("Remuneração", value=float(get_val("remuneracao", 0)))
+#         nivel_profissional = st.text_input("Nível Profissional", value=get_val("nivel_profissional"))
+#         nivel_ingles = st.text_input("Nível de Inglês", value=get_val("nivel_ingles"))
+#         nivel_espanhol = st.text_input("Nível de Espanhol", value=get_val("nivel_espanhol"))
+#         outro_idioma = st.text_input("Outro Idioma", value=get_val("outro_idioma"))
+
+#         dados = {
+#             "id": id_final,
+#             "nome": nome,
+#             "telefone": telefone,
+#             "email": email,
+#             "localizacao": localizacao,
+#             "codigo_profissional": codigo_profissional,
+#             "data_nascimento": data_nascimento.isoformat(),
+#             "telefone_celular": telefone_celular,
+#             "sexo": sexo,
+#             "estado_civil": estado_civil,
+#             "pcd": pcd == "True",
+#             "endereco": endereco,
+#             "url_linkedin": url_linkedin,
+#             "titulo_profissional": titulo_profissional,
+#             "area_atuacao": area_atuacao,
+#             "conhecimentos_tecnicos": conhecimentos_tecnicos,
+#             "certificacoes": certificacoes,
+#             "remuneracao": remuneracao,
+#             "nivel_profissional": nivel_profissional,
+#             "nivel_ingles": nivel_ingles,
+#             "nivel_espanhol": nivel_espanhol,
+#             "outro_idioma": outro_idioma,
+#         }
+
+#         if st.button("💾 Salvar Candidato"):
+#             try:
+#                 if modo_cadastro == "Cadastrar novo candidato":
+#                     database.inserir_applicant_supabase(dados)
+#                     st.success(f"✅ Novo candidato cadastrado com sucesso! ID: {id_final or '(gerado)'}")
+#                 else:
+#                     if not id_final:
+#                         st.error("Por favor, selecione um candidato para editar.")
+#                     else:
+#                         database.atualizar_applicant_supabase(dados)
+#                         st.success(f"✅ Dados do candidato {id_final} atualizados com sucesso!")
+#             except Exception as e:
+#                 st.error(f"❌ Erro ao salvar no Supabase: {e}")
