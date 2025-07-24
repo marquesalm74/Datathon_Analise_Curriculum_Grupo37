@@ -16,9 +16,8 @@ from models.analysis import Analysis  # usado no insert_analysis
 
 load_dotenv()
 
-# # Para ativar Supabase no futuro, use algo assim:
-# from supabase_client import supabase
-
+# Para ativar Supabase no futuro, use algo assim:
+from supabase_client import supabase
 
 class AnalyseDatabase:
     def __init__(self):
@@ -79,7 +78,7 @@ class AnalyseDatabase:
         # 5. Retornar o DataFrame ordenado
         return resultados_ordenados
 
-    #
+    
     def get_embedding_applicants(self, titulo_vaga: str, candidatos: list[dict]) -> list[dict]:
         """
         Recebe um título de vaga e uma lista de candidatos (lista de dicts),
@@ -105,16 +104,16 @@ class AnalyseDatabase:
         """Mock de inserção da análise. Pode ser adaptado ao Supabase futuramente."""
         print(f"🔄 Mock insert: {analysis_obj.codigo_vaga} - {analysis_obj.file}")
 
-    # # Métodos para Supabase futuramente:
-    # def inserir_applicant_supabase(self, dados: Dict) -> None:
-    #     supabase.table("applicants").insert(dados).execute()
-    #
-    # def atualizar_applicant_supabase(self, dados: Dict) -> None:
-    #     supabase.table("applicants").update(dados).eq("id", dados["id"]).execute()
-    #
-    # def get_all_applicants_supabase(self) -> List[Dict]:
-    #     response = supabase.table("applicants").select("*").execute()
-    #     return response.data if response.data else []
+    # Métodos para Supabase futuramente:
+    def inserir_applicant_supabase(self, dados: Dict) -> None:
+         supabase.table("applicants").insert(dados).execute()
+    
+    def atualizar_applicant_supabase(self, dados: Dict) -> None:
+         supabase.table("applicants").update(dados).eq("id", dados["id"]).execute()
+    
+    def get_all_applicants_supabase(self) -> List[Dict]:
+         response = supabase.table("applicants").select("*").execute()
+         return response.data if response.data else []
 
     ############################ Atualizar no Supabase e df_applicants
     #
@@ -145,14 +144,14 @@ class AnalyseDatabase:
         if response.error:
             raise Exception(f"Erro ao inserir no Supabase: {response.error.message}")
 
-        # Atualize o DataFrame local adicionando o novo registro
+        # Atualize o DataFrame local adicionando o novo registro 
         novo_registro = pd.DataFrame([dados])
         self.applicants = pd.concat([self.applicants, novo_registro], ignore_index=True)
         
         return response.data
     
     # Suponha que applicants seja seu DataFrame global importado de tratarbase.py
-    # from tratarbase import applicants
+    from tratarbase import applicants
 
     def inserir_applicant_novo(self,dados: dict):
         """
@@ -197,6 +196,133 @@ class AnalyseDatabase:
                 applicants.at[idx, coluna] = dados[coluna]
             else:
                 # Se a coluna não existe, você pode optar por ignorar ou criar nova coluna:
-                # applicants[coluna] = None  # criar coluna vazia antes
-                # applicants.at[idx, coluna] = dados[coluna]
-                pass
+                applicants[coluna] = None  # criar coluna vazia antes
+                applicants.at[idx, coluna] = dados[coluna]
+                pass 
+
+#################################################################################
+#
+#import os
+#import pandas as pd
+#from typing import List, Dict, Optional
+#from dotenv import load_dotenv
+#from sentence_transformers import SentenceTransformer
+#from sklearn.metrics.pairwise import cosine_similarity
+#from supabase_client import supabase
+#from models.analysis import Analysis
+
+#load_dotenv()
+
+#class AnalyseDatabase:
+#    def __init__(self):
+#        self.model = SentenceTransformer("all-MiniLM-L6-v2")
+
+    ########################## Applicants ##############################
+
+    #def get_applicants(self, codigo_vaga: str) -> List[Dict]:
+    #    """Retorna todos os candidatos vinculados à vaga sem paginação."""
+    #    response = supabase.table("applicants")\
+    #        .select("*")\
+    #        .eq("codigo_profissional", codigo_vaga)\
+    #        .limit(50000).execute()
+
+    #    return response.data if response.data else []
+    
+#    def get_applicants(self, codigo_vaga: str, page: int = 0, page_size: int = 1000) -> List[Dict]:
+#        start = page * page_size
+#        end = start + page_size - 1
+#        response = supabase.table("applicants")\
+#            .select("*")\
+#            .eq("codigo_profissional", codigo_vaga)\
+#            .range(start, end)\
+#            .execute()
+#        return response.data if response.data else []
+
+    #def get_all_applicants(self) -> List[Dict]:
+    #    """Retorna todos os candidatos cadastrados (sem paginação)."""
+    #    response = supabase.table("applicants")\
+    #        .select("*")\
+    #        .limit(50000).execute()
+
+    #    return response.data if response.data else []
+    
+#    def get_all_applicants(self, page: int = 0, page_size: int = 1000) -> List[Dict]:
+#        """Retorna candidatos paginados."""
+#        start = page * page_size
+#        end = start + page_size - 1
+#        response = supabase.table("applicants")\
+#            .select("*")\
+#            .range(start, end)\
+#            .execute()
+#        return response.data if response.data else []
+
+    #def inserir_applicant_supabase(self, dados: Dict) -> None:
+    #    response = supabase.table("applicants").insert(dados).execute()
+    #    if response.error:
+    #        raise Exception(f"Erro ao inserir no Supabase: {response.error.message}")
+    #    return response.data
+    
+    ################################ Applicants
+    # Inserção de novo applicant
+#    def inserir_applicant_supabase(self, dados):
+#        response = self.supabase.table("tbl_applicants").insert(dados).execute()
+#        if response.status_code >= 400:
+#            raise Exception(f"Erro na inserção: {response.data}")
+#        return response.data
+
+    # # Atualização de applicant existente
+    # def atualizar_applicant_supabase(self, dados):
+    #     id_applicant = dados["id"]
+    #     dados_sem_id = dados.copy()
+    #     del dados_sem_id["id"]
+        
+    #     response = self.supabase.table("tbl_applicants").update(dados_sem_id).eq("id", id_applicant).execute()
+    #     if response.status_code >= 400:
+    #         raise Exception(f"Erro na atualização: {response.data}")
+    #     return response.data
+
+    ########################## Prospects ###############################
+
+    # def get_prospects(self, codigo_vaga: str) -> List[Dict]:
+    #     response = supabase.table("prospects").select("*").eq("codigo_vaga", codigo_vaga).execute()
+    #     return response.data if response.data else []
+
+    # ############################ Vagas #################################
+
+    # def get_all_vagas(self) -> List[Dict]:
+    #     """Retorna todas as vagas disponíveis sem paginação."""
+    #     response = supabase.table("vagas").select("*").limit(50000).execute()
+    #     return response.data if response.data else []
+
+    # def get_vaga_by_codigo(self, codigo_vaga: str) -> Optional[Dict]:
+    #     response = supabase.table("vagas").select("codigo_vaga,titulo_vaga").eq("codigo_vaga", codigo_vaga).execute()
+    #     if response.data:
+    #         return response.data[0]
+    #     return None
+
+    # ################## IA - Similaridade por Embeddings #################
+
+    # def get_candidatos_compativeis_por_titulo(self, titulo_vaga: str) -> pd.DataFrame:
+    #     candidatos = self.get_all_applicants()
+    #     resultados = self.get_embedding_applicants(titulo_vaga, candidatos)
+    #     df_resultados = pd.DataFrame(resultados)
+    #     resultados_ordenados = df_resultados.sort_values(by="score_similaridade", ascending=False)
+    #     return resultados_ordenados
+
+    # def get_embedding_applicants(self, titulo_vaga: str, candidatos: List[Dict]) -> List[Dict]:
+    #     df_applicants = pd.DataFrame(candidatos)
+    #     if "texto_cv" not in df_applicants.columns:
+    #         df_applicants["texto_cv"] = ""
+    #     embeddings_applicants = self.model.encode(df_applicants["texto_cv"].tolist(), convert_to_tensor=False)
+    #     embedding_vaga = self.model.encode(titulo_vaga, convert_to_tensor=False)
+    #     scores = cosine_similarity([embedding_vaga], embeddings_applicants)[0]
+    #     df_applicants["score_similaridade"] = scores
+    #     return df_applicants.to_dict(orient="records")
+
+    # ################## Mock (ex: futuro insert de análise IA) ###########
+
+    # def insert_analysis(self, analysis_obj: Analysis):
+    #     print(f"🔄 Mock insert: {analysis_obj.codigo_vaga} - {analysis_obj.file}")
+
+    # def insert_analysis(self, analysis_obj: Analysis):
+    #     print(f"🔄 Mock insert: {analysis_obj.codigo_vaga} - {analysis_obj.file}")

@@ -23,7 +23,7 @@ else:
         requests = service.files().get_media(fileId=file['id'])
         file_path = f"./curriculum/{file['name']}"
         with open(file_path, 'wb') as file:
-            donwloader = MediaIoBaseDownload(file, requests)
+            downloader = MediaIoBaseDownload(file, requests)
             done = False
             while not done:
-                status, done = donwloader.next_chunk()
+                status, done = downloader.next_chunk()

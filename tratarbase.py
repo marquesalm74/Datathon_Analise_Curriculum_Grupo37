@@ -2,8 +2,10 @@ import pandas as pd
 import numpy as np
 import json
 import unidecode
+import unicodedata
 import re
 import warnings
+import uuid
 
 from supabase_client import supabase
 
@@ -30,47 +32,103 @@ for id_candidato, info in dados.items():
 # Criar o DataFrame estruturado
 df = pd.DataFrame(lista_candidatos)
 
-def tratar_base(df):
-    # 1. Substituir valores NaN e strings vazias por 'sem informacao'
-    df = df.replace({':': np.nan, '-': np.nan, '': np.nan}).infer_objects(copy=False)        
-    df = df.fillna('sem informacao')
+#duplicados = df['id'].duplicated(keep=False)  # keep=False marca todas as duplicatas, não só a partir da segunda
 
-    # 2. Converter colunas de data para datetime
-    colunas_data = [col for col in df.columns if 'data' in col.lower()]
+#if duplicados.any():
+#    print("Existem valores duplicados na coluna 'id':")
+#    print(df.loc[duplicados, 'id'])
+#else:
+#    print("Todos os valores da coluna 'id' são únicos.")
+
+
+def tratar_base(df, colunas_uuid=None, colunas_bool=None):
+    # 1. Substituir símbolos e valores ausentes por None temporariamente
+    df = df.replace({':': None, '-': None, '': None})
+
+    # 2. Colunas de data
+    colunas_data = [
+        'data_nascimento', 'data_admissao', 'data_ultima_promocao',
+        'data_criacao', 'data_atualizacao'
+    ]
+
     for col in colunas_data:
-        try:
-            df[col] = pd.to_datetime(df[col], format="%Y-%m-%d", errors='coerce')
-        except Exception:
-            # Se erro, tenta converter sem format (fallback)
-            df[col] = pd.to_datetime(df[col], errors='coerce')
-        df[col] = df[col].fillna(pd.Timestamp('1900-01-01'))
+        if col in df.columns:
+            df[col] = pd.to_datetime(df[col], errors='coerce', dayfirst=True)
+            df[col] = df[col].where(df[col] >= pd.to_datetime("1900-01-01"))
+            # converter para string ISO ou 'sem informacao'
+            df[col] = df[col].dt.strftime('%Y-%m-%d')
+            df[col] = df[col].fillna('sem informacao').astype(str)
 
-    # 3. Converter coluna 'remuneracao' para float, se existir
+    # 3. Coluna de remuneração
     if 'remuneracao' in df.columns:
-        df['remuneracao'] = df['remuneracao'].replace('sem informacao', np.nan)
+        df['remuneracao'] = df['remuneracao'].replace('sem informacao', None)
         df['remuneracao'] = df['remuneracao'].astype(str)
         df['remuneracao'] = df['remuneracao'].str.replace('R$', '', regex=False)
         df['remuneracao'] = df['remuneracao'].str.replace('.', '', regex=False)
         df['remuneracao'] = df['remuneracao'].str.replace(',', '.', regex=False)
-        df['remuneracao'] = df['remuneracao'].fillna(0.00)
+        # Converter para float pra limpeza, mas manter como string no final
+        df['remuneracao'] = pd.to_numeric(df['remuneracao'], errors='coerce')
+        df['remuneracao'] = df['remuneracao'].fillna(-1)  # placeholder para nulo
+        df['remuneracao'] = df['remuneracao'].apply(lambda x: 'sem informacao' if x == -1 else f"{x:.2f}")
+
+    # 4. Validar UUIDs nas colunas indicadas, exceto a coluna 'id'
+    if colunas_uuid:
+        for col in colunas_uuid:
+            if col == 'id':  # pular coluna id
+                continue
+            if col in df.columns:
+                def validar_uuid(val):
+                    if val is None:
+                        return 'sem informacao'
+                    try:
+                        return str(uuid.UUID(str(val)))
+                    except Exception:
+                        return 'sem informacao'
+                df[col] = df[col].apply(validar_uuid)
+
+    # 5. Tratar colunas numéricas para não ter nan (out of range)
+    numericas = df.select_dtypes(include=['float', 'int']).columns
+    for col in numericas:
+        df[col] = df[col].apply(lambda x: 'sem informacao' if pd.isna(x) or (isinstance(x, float) and (x != x)) else x)
+
+    # 6. Para todas as colunas EXCETO as de data e remuneração, substituir None/NaN por 'sem informacao'
+    colunas_excecao = colunas_data + ['remuneracao']
+    colunas_outros = [c for c in df.columns if c not in colunas_excecao]
+    df.loc[:, colunas_outros] = df.loc[:, colunas_outros].fillna('sem informacao')
+    df.loc[:, colunas_outros] = df.loc[:, colunas_outros].where(pd.notnull(df.loc[:, colunas_outros]), 'sem informacao')
+
+    # 7. Converter coluna 'id' para string (caso não esteja)
+    if 'id' in df.columns:
+        df['id'] = df['id'].astype(str)
 
     return df
 
 df_tratado = tratar_base(df)
 
+###
 def limpar_texto(texto):
     if not isinstance(texto, str):
         return texto
-    return (
+
+    texto = (
         texto.replace('\n', ' ')
              .replace('\r', ' ')
+             .replace('\t', ' ')
              .replace('\\', ' ')
              .replace('"', "'")
+             .replace('–', '-')
+             .replace('“', '"')
+             .replace('”', '"')
+             .replace('’', "'")
              .strip()
     )
+    texto = re.sub(r'\s+', ' ', texto)  # espaço múltiplo → 1 espaço
+    return texto
 
+colunas_texto = ['cv_pt', 'experiencias', 'qualificacoes', 'cursos', 'projeto_atual',
+                 'cargo_atual','objetivo_profissional', 'titulo_profissional','area_atuacao',
+                 'conhecimentos_tecnicos','qualificacoes','experiencias','nivel_ingles']
 
-colunas_texto = ['cv_pt', 'experiencias', 'qualificacoes', 'cursos', 'projeto_atual']
 for col in colunas_texto:
     if col in df_tratado.columns:
         df_tratado[col] = df_tratado[col].apply(limpar_texto)
@@ -86,22 +144,30 @@ applicants = df_tratado[[
 ]]
 
 applicants.loc[:, 'pcd'] = applicants['pcd'].apply(lambda x: None if str(x).lower() == 'sem_informacao' else x)
+applicants = applicants.rename(columns={"local": "localizacao"})
 
 # realocado de embeddings
 # Garante colunas necessárias
-for col in ["cargo_atual", "objetivo_profissional", "titulo_profissional", "area_atuacao"]:
+for col in ["cargo_atual", "objetivo_profissional", "titulo_profissional", "area_atuacao","conhecimentos_tecnicos",
+            "qualificacoes","experiencias","nivel_ingles"]:
     if col not in applicants.columns:
         applicants[col] = ""
 
-# Cria campo concatenado
-    applicants["texto_cv"] = (
+# Esta etapa feita direto no codigo
+# Cria campo concatenado com mais colunas
+applicants["texto_cv"] = (
     applicants["cargo_atual"].fillna("") + " " +
     applicants["objetivo_profissional"].fillna("") + " " +
     applicants["titulo_profissional"].fillna("") + " " +
-    applicants["area_atuacao"].fillna("")
-    )
+    applicants["area_atuacao"].fillna("") + " " +
+    applicants["conhecimentos_tecnicos"].fillna("") + " " +
+    applicants["qualificacoes"].fillna("") + " " +
+    applicants["experiencias"].fillna("") + " " +
+    applicants["nivel_ingles"].fillna("")
+)
 
-applicants.head(2)
+#applicants.head(2)
+#applicants.iloc[:,19:].info()
 ###################################################################################
 #                                   Prospects.json
 
@@ -246,7 +312,7 @@ COLUNAS_VALIDAS = {
     ],
     "applicants_new": [
         "id","codigo_profissional","nome","email","sexo","estado_civil",
-        "data_nascimento","telefone","telefone_celular","local","endereco",
+        "data_nascimento","telefone","telefone_celular","localizacao","endereco",
         "pcd","cargo_atual","objetivo_profissional","url_linkedin","titulo_profissional",
         "area_atuacao","conhecimentos_tecnicos","nivel_academico","cursos","certificacoes",
         "remuneracao","nivel_profissional","nivel_ingles","nivel_espanhol","outro_idioma",
@@ -256,40 +322,40 @@ COLUNAS_VALIDAS = {
 }
 
 #####################################################################################
-#def subir_para_supabase(df, tabela):
-#    df = df.copy()
+def subir_para_supabase(df, tabela):
+    df = df.copy()
 
-#    colunas_validas = COLUNAS_VALIDAS.get(tabela)
-#    if colunas_validas:
-#        colunas_extras = [col for col in df.columns if col not in colunas_validas]
-#        if colunas_extras:
-#            print(f"Removendo colunas que não existem na tabela '{tabela}': {colunas_extras}")
-#            df = df.drop(columns=colunas_extras)
-#    else:
-#        print(f"Aviso: tabela '{tabela}' sem definição de colunas válidas.")
+    colunas_validas = COLUNAS_VALIDAS.get(tabela)
+    if colunas_validas:
+        colunas_extras = [col for col in df.columns if col not in colunas_validas]
+        if colunas_extras:
+            print(f"Removendo colunas que não existem na tabela '{tabela}': {colunas_extras}")
+            df = df.drop(columns=colunas_extras)
+    else:
+        print(f"Aviso: tabela '{tabela}' sem definição de colunas válidas.")
 
-#    for col in df.select_dtypes(include=['datetime64[ns]']).columns:
-#        df[col] = df[col].fillna(pd.Timestamp('1900-01-01'))
-#        df[col] = df[col].dt.strftime('%Y-%m-%d')
+    for col in df.select_dtypes(include=['datetime64[ns]']).columns:
+        df[col] = df[col].fillna(pd.Timestamp('1900-01-01'))
+        df[col] = df[col].dt.strftime('%Y-%m-%d')
 
-#    for col in df.columns:
-#        if df[col].dtype in ['float64', 'int64']:
-#            df[col] = df[col].fillna(0.0)
-#        elif col in df.select_dtypes(include=['object']).columns:
-#            df[col] = df[col].fillna('sem_informacao')
+    for col in df.columns:
+        if df[col].dtype in ['float64', 'int64']:
+            df[col] = df[col].fillna(0.0)
+        elif col in df.select_dtypes(include=['object']).columns:
+            df[col] = df[col].fillna('sem_informacao')
 
-#    dados = df.replace({np.nan: None}).to_dict(orient='records')
+    dados = df.replace({np.nan: None}).to_dict(orient='records')
 
-#    if len(dados) == 0:
-#        print(f'Nenhum registro para inserir na tabela {tabela}.')
-#        return
+    if len(dados) == 0:
+        print(f'Nenhum registro para inserir na tabela {tabela}.')
+        return
 
-#    resposta = supabase.table(tabela).insert(dados).execute()
+    resposta = supabase.table(tabela).insert(dados).execute()
 
-#    if resposta.data is not None:
-#        print(f'{len(dados)} registros inseridos com sucesso na tabela {tabela}.')
-#    else:
-#        print(f'Erro ao inserir na tabela {tabela}: {resposta.error}')
+    if resposta.data is not None:
+        print(f'{len(dados)} registros inseridos com sucesso na tabela {tabela}.')
+    else:
+        print(f'Erro ao inserir na tabela {tabela}: {resposta.error}')
 
 
 ################# Inserir direto no SUPABASE
@@ -297,3 +363,21 @@ COLUNAS_VALIDAS = {
 #subir_para_supabase(prospects_tratada, 'prospects')
 #subir_para_supabase(perfil_vagas_tratada, 'vagas')
 #subir_para_supabase(applicants, 'applicants_new')
+
+#def subir_para_supabase_em_lotes(df, tabela, batch_size=500):
+#    dados = df.to_dict(orient="records")
+
+#    if not dados:
+#        print(f"Nenhum registro para inserir na tabela {tabela}.")
+#        return
+
+#    for i in range(0, len(dados), batch_size):
+#        lote = dados[i:i + batch_size]
+#        try:
+#            resposta = supabase.table(tabela).insert(lote).execute()
+#            print(f"Lote {i // batch_size + 1} inserido com sucesso.")
+#        except Exception as e:
+#            print(f"Erro ao inserir lote {i // batch_size + 1}: {e}")
+            
+#subir_para_supabase_em_lotes(applicants, 'applicants_new')
+

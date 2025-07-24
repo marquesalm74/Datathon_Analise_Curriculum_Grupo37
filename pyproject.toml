@@ -1,0 +1,38 @@
+[tool.poetry]
+name = "analyser-resume"
+version = "0.1.0"
+description = ""
+authors = ["alessandro"]
+readme = "README.md"
+packages = [ { include = "your_package_name" } ]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+google-api-python-client = ">=2.173.0,<3.0.0"
+google-auth-httplib2     = ">=0.2.0,<0.3.0"
+google-auth-oauthlib     = ">=1.2.2,<2.0.0"
+python-dotenv = "^1.1.1"
+supabase = "^2.16.0"
+streamlit = "^1.46.1"
+pandas = "^2.3.0"
+numpy = "^2.3.1"
+scikit-learn = "^1.7.0"
+unidecode = "^1.4.0"
+pydantic = "^2.11.7"
+dotenv = "^0.9.9"
+streamlit-aggrid = "^1.1.6"
+langchain-groq = "^0.3.6"
+pymupdf = "^1.26.3"
+plotly-express = "^0.4.1"
+sentence-transformers = "^5.0.0"
+huggingface-hub = {extras = ["hf-xet"], version = "^0.33.4"}
+plotly = "^6.2.0"
+scipy = "^1.16.0"
+fpdf = "^1.7.2"
+
+[tool.poetry.group.dev.dependencies]
+ipykernel = "^6.29.5"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
