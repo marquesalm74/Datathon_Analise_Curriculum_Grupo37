@@ -1,8 +1,10 @@
 Projeto DATATHON 
 
+Link da aplicação - DEPLOY STREAMLIT CLOUD : https://analyserresume-3ud8n6vybz2gwgz4ejrlor.streamlit.app/
+
 Alessandro Lúcio Marques - rm: 358206
-Geovanna de Araújo Barros
-Jhonny Brasiliano da Silva
+Geovanna de Araújo Barros - rm: 358660
+Jhonny Brasiliano da Silva - rm: 359212
 
 Rebebida 3 bases de dados: propescts, applicants e vagas. Foram tratadas, pois há muitos dados faltantes e caracteres especiais. A base de dados vagas e applicants e prospect tem em comum uma relação, por meio do, id ou codigo_vaga.
 Foi trabalhado a inserção no banco de dados de novo candidato e de atualização de dados de vagas selecionadas no front-end, com a intenção de preencher corretamente a base de dados. Tarefa do setor de recursos humanos.
